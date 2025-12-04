@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AML Sim: High Frequency Velocity</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Pinyon+Script&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .row-highlight { background-color: #fef2f2; border-left: 4px solid #ef4444; }
+        .row-normal { border-left: 4px solid transparent; }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .btn-glow {
+            animation: pulse-red 2s infinite;
+            border-color: #ef4444 !important;
+        }
+
+        #cert-preview-container {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
+
+    <!-- Header -->
+    <header class="bg-slate-900 text-white p-4 shadow-md shrink-0 flex justify-between items-center z-20">
+        <div class="flex items-center gap-4">
+            <a href="../" class="group flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-md border border-slate-700 transition-all text-xs font-semibold uppercase tracking-wide">
+                <i class="ph ph-arrow-u-up-left group-hover:-translate-x-1 transition-transform"></i>
+                Hub
+            </a>
+            <div class="h-8 w-px bg-slate-700 hidden sm:block"></div>
+            <div class="flex items-center gap-3">
+                <div class="bg-red-600 p-2 rounded-lg">
+                    <i class="ph ph-lightning text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg tracking-wide">Scenario: High Frequency Velocity</h1>
+                    <a href="https://www.udemy.com/course/anti-money-laundering-aml-transaction-monitoring-analyst-training/?referralCode=405F72270A13A5D0E92C" 
+                       target="_blank" 
+                       class="text-[11px] text-red-300 hover:text-white underline block transition-colors mt-0.5">
+                       Simulation part of AML, KYC and Transaction Monitoring Compliance Bootcamp ↗
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-6">
+            <div class="text-right hidden md:block">
+                <div class="text-xs text-slate-400">Velocity Rule</div>
+                <div class="font-mono font-bold text-red-400">≥ 20 Tx / Day</div>
+            </div>
+            <div class="h-8 w-px bg-slate-700 hidden md:block"></div>
+            <div class="text-right">
+                <div class="text-xs text-slate-400">Active Case</div>
+                <div id="score-display" class="font-bold text-xl">0 / 1</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <!-- Nudge Modal -->
+        <div id="nudge-modal" class="absolute inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm fade-in">
+            <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full mx-4 border-t-4 border-red-500">
+                <div class="flex items-start gap-3 mb-4">
+                    <div class="bg-red-100 p-2 rounded-full text-red-600">
+                        <i class="ph ph-warning-circle text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg text-slate-800">Alert Missed</h3>
+                        <p class="text-sm text-slate-600 mt-1">
+                            You haven't escalated the high-velocity case yet.
+                        </p>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500 mb-6 bg-slate-50 p-3 rounded">
+                    <strong>Hint:</strong> Look at Customer C10. They have 50 transactions in a single day! Use the "Velocity Scanner" to find them.
+                </p>
+                <div class="flex justify-end gap-3">
+                    <button onclick="closeNudge()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-sm font-medium transition">
+                        Resume Analysis
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="w-1/3 min-w-[340px] bg-white border-r border-slate-200 flex flex-col shadow-lg z-10 relative">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                    <i class="ph ph-graduation-cap text-red-600"></i> 
+                    Task Guidance
+                </h2>
+                <button onclick="resetSimulation()" class="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1 transition">
+                    <i class="ph ph-arrows-counter-clockwise"></i> Start Over
+                </button>
+            </div>
+            
+            <div id="narration-container" class="p-6 flex-1 overflow-y-auto space-y-6">
+                <!-- Content injected via JS -->
+            </div>
+
+            <div class="p-4 border-t border-slate-200 bg-white flex justify-between items-center">
+                <button onclick="prevScene()" id="btn-prev" class="px-4 py-2 text-slate-500 hover:text-slate-800 text-sm font-medium disabled:opacity-30" disabled>
+                    <i class="ph ph-arrow-left"></i> Back
+                </button>
+                <div class="flex gap-1">
+                    <span id="dot-1" class="w-2 h-2 rounded-full bg-red-600"></span>
+                    <span id="dot-2" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                    <span id="dot-3" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                    <span id="dot-4" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                </div>
+                <button onclick="attemptNextScene()" id="btn-next" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded shadow transition">
+                    Next <i class="ph ph-arrow-right"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="w-2/3 bg-slate-100 p-6 flex flex-col gap-6 overflow-hidden relative">
+            
+            <!-- Stats -->
+            <div id="stats-panel" class="grid grid-cols-3 gap-4 shrink-0 transition-all duration-500">
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                    <div class="text-xs text-slate-500 font-semibold uppercase mb-2">Daily Velocity (Tx Count)</div>
+                    <div class="h-28">
+                        <canvas id="velocityChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 col-span-2 flex flex-col justify-center">
+                    <div class="flex items-start gap-4">
+                        <div class="p-3 bg-red-100 text-red-600 rounded-full">
+                            <i class="ph ph-gauge text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800">Velocity Alert</h3>
+                            <p class="text-sm text-slate-600 mt-1">
+                                High frequency suggests <strong>card testing</strong> or automated bot activity.
+                                Rule: Flag any customer with <strong>20+</strong> transactions in one day.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dataset -->
+            <div id="dataset-panel" class="bg-white rounded-lg shadow-md border border-slate-200 flex-1 flex flex-col overflow-hidden transition-all duration-500">
+                <!-- Toolbar -->
+                <div class="p-3 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <h3 class="font-bold text-sm text-slate-700 flex items-center gap-2">
+                        <i class="ph ph-table"></i> Transaction Stream: March 15, 2024
+                    </h3>
+                    <div class="flex gap-2">
+                        <button id="scan-btn" onclick="toggleScan()" class="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 text-slate-600 rounded hover:bg-slate-50 text-sm transition shadow-sm relative">
+                            <i class="ph ph-crosshair"></i>
+                            <span>Velocity Scanner</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Table Header -->
+                <div id="table-header" class="grid grid-cols-12 bg-slate-100 p-3 text-xs font-bold text-slate-500 uppercase border-b border-slate-200">
+                    <div class="col-span-2">Date</div>
+                    <div class="col-span-2">Tx ID</div>
+                    <div class="col-span-2">Customer</div>
+                    <div class="col-span-3 text-right pr-4">Amount (USD)</div>
+                    <div class="col-span-3 text-center">Action</div>
+                </div>
+
+                <!-- Table Body -->
+                <div id="transaction-table" class="overflow-y-auto flex-1 bg-white">
+                    <!-- Rows injected by JS -->
+                </div>
+            </div>
+
+            <!-- Case Log -->
+            <div id="caselog-panel" class="h-48 bg-slate-800 rounded-lg shadow-inner flex flex-col shrink-0 text-white transition-all duration-500">
+                <div class="p-3 bg-slate-900 border-b border-slate-700 flex justify-between items-center">
+                    <h3 class="font-bold text-sm flex items-center gap-2">
+                        <i class="ph ph-file-text"></i> Case Log (Escalated Bundles)
+                    </h3>
+                    <span class="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">Under Investigation</span>
+                </div>
+                <div class="overflow-y-auto p-0">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-400 uppercase bg-slate-800 sticky top-0">
+                            <tr>
+                                <th class="px-4 py-2">Case ID</th>
+                                <th class="px-4 py-2">Customer</th>
+                                <th class="px-4 py-2">Reason</th>
+                                <th class="px-4 py-2">Evidence</th>
+                            </tr>
+                        </thead>
+                        <tbody id="case-log-body" class="text-slate-300">
+                            <tr id="empty-log-msg">
+                                <td colspan="4" class="px-4 py-8 text-center text-slate-500 italic">
+                                    No velocity cases created yet.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Certificate View -->
+            <div id="certificate-view" class="hidden absolute inset-0 bg-slate-100 z-20 flex flex-col items-center justify-center p-6 fade-in">
+                <div class="w-full max-w-4xl flex gap-6 h-full">
+                    <div class="flex-1 flex flex-col justify-center items-center">
+                        <h3 class="text-slate-500 text-xs uppercase font-bold mb-4 tracking-widest">Live Certificate Preview</h3>
+                        <div id="cert-preview-container" class="relative bg-white p-1 rounded-lg border border-slate-200">
+                             <canvas id="certCanvas" width="800" height="600" class="w-full h-auto max-h-[500px] shadow-sm"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        (function() {
+            // ==========================================
+            // CONFIGURATION
+            // ==========================================
+            const COURSE_IMAGE_BASE64 = ""; 
+            const UDEMY_LOGO_BASE64 = "";   
+
+            const courseImgObj = new Image();
+            const logoImgObj = new Image();
+            if (COURSE_IMAGE_BASE64) courseImgObj.src = COURSE_IMAGE_BASE64;
+            if (UDEMY_LOGO_BASE64) logoImgObj.src = UDEMY_LOGO_BASE64;
+
+            // ==========================================
+            // DATA GENERATION (Simulating 50+ rows)
+            // ==========================================
+            const transactions = [];
+            
+            // C10: 50 transactions of $200
+            for(let i=1; i<=50; i++) {
+                transactions.push({ 
+                    id: `HF${i.toString().padStart(3,'0')}`, 
+                    cust: 'C10', 
+                    date: '2024-03-15', 
+                    amount: 200 
+                });
+            }
+
+            // C11: 10 transactions of $1500
+            for(let i=51; i<=60; i++) {
+                transactions.push({ 
+                    id: `HF${i.toString().padStart(3,'0')}`, 
+                    cust: 'C11', 
+                    date: '2024-03-15', 
+                    amount: 1500 
+                });
+            }
+
+            // Random Noise
+            transactions.push({ id: 'HF061', cust: 'C12', date: '2024-03-15', amount: 50 });
+            transactions.push({ id: 'HF062', cust: 'C13', date: '2024-03-15', amount: 120 });
+
+            // State
+            let chartInstance = null;
+            let currentScene = 0;
+            let isScanMode = false;
+            let escalatedCustomer = null; 
+            let certName = "";
+
+            const getScenes = () => [
+                {
+                    title: "1. Velocity = Risk",
+                    content: `
+                        <div class="space-y-4 text-sm text-slate-600">
+                            <p>Sometimes the risk isn't the amount, but the <strong>speed</strong>. A burst of small transactions can signal "layering" or automated card testing.</p>
+                            <p>Our Rule: <strong>≥ 20 transactions</strong> in a single day is a Red Flag.</p>
+                            <div class="bg-red-50 border-l-4 border-red-500 p-3 text-red-800 text-xs">
+                                <strong>Task:</strong> Identify the customer breaking the velocity limit.
+                            </div>
+                        </div>
+                    `
+                },
+                {
+                    title: "2. Real-World Context",
+                    content: `
+                        <div class="space-y-4 text-sm text-slate-600">
+                            <p>Criminals use "micro-transactions" to move money under the radar. 50 payments of $200 equals $10,000.</p>
+                            <p>If you only look at the $200 value, you miss the crime. You must look at the <strong>count</strong>.</p>
+                            <div class="bg-slate-800 text-white p-3 rounded">
+                                <div class="text-[10px] uppercase tracking-wider text-slate-400 mb-1">Analyst Insight</div>
+                                <div class="font-bold">Always check Transaction Count per Day.</div>
+                            </div>
+                        </div>
+                    `
+                },
+                {
+                    title: "3. Hands-On Task",
+                    content: `
+                        <div class="space-y-4 text-sm text-slate-600">
+                            <p><strong>Your Mission:</strong> Detect the High-Velocity Actor.</p>
+                            <ul class="list-disc ml-5 space-y-2">
+                                <li><strong>Step 1:</strong> Click <span class="text-red-600 font-bold">Velocity Scanner</span> to group by count.</li>
+                                <li><strong>Step 2:</strong> Identify the customer with > 20 transactions.</li>
+                                <li><strong>Step 3:</strong> Click <strong>Escalate Bundle</strong> to create a single case for all their activity.</li>
+                            </ul>
+                            <p class="text-xs text-slate-500 italic mt-2">Note: C11 has high value but low count (10). Do not escalate C11.</p>
+                        </div>
+                    `
+                },
+                {
+                    title: "4. Certificate of Completion",
+                    content: `
+                        <div class="space-y-4 text-sm text-slate-600">
+                            <p class="text-green-600 font-bold">🎉 Speed Limit Enforced!</p>
+                            <p>You correctly identified C10's 50-transaction burst and ignored C11.</p>
+                            
+                            <div class="bg-slate-50 p-4 rounded border border-slate-200 mt-4 shadow-sm">
+                                <input type="text" id="cert-name-input" 
+                                    oninput="updateCertificateName(this.value)"
+                                    placeholder="Type Your Name Here..." 
+                                    class="w-full p-2.5 text-base border border-slate-300 rounded mb-3 focus:ring-2 focus:ring-red-500 outline-none">
+                                
+                                <a id="download-link" href="#" onclick="downloadCertificate(this)" class="block w-full text-center bg-red-600 hover:bg-red-700 text-white py-2.5 rounded text-sm font-bold transition shadow-lg mt-2 flex items-center justify-center gap-2">
+                                    <i class="ph ph-download-simple text-lg"></i> Download Certificate
+                                </a>
+                                <p class="text-[10px] text-center text-slate-400 mt-2">
+                                💡 Tip: Share this on LinkedIn with #AMLBootcamp
+                            </p>
+                            </div>
+                        </div>
+                    `
+                }
+            ];
+
+            let scenes = getScenes();
+
+            // ==========================================
+            // GLOBAL FUNCTIONS
+            // ==========================================
+            window.prevScene = function() {
+                if(currentScene > 0) {
+                    currentScene--;
+                    renderNarration();
+                }
+            };
+
+            window.attemptNextScene = function() {
+                if (currentScene === 2 && !escalatedCustomer) {
+                    document.getElementById('nudge-modal').classList.remove('hidden');
+                    return;
+                }
+                if(currentScene < scenes.length - 1) {
+                    currentScene++;
+                    renderNarration();
+                }
+            };
+
+            window.closeNudge = function() {
+                document.getElementById('nudge-modal').classList.add('hidden');
+            };
+
+            window.toggleScan = function() {
+                isScanMode = !isScanMode;
+                const btn = document.getElementById('scan-btn');
+                
+                if (isScanMode) {
+                    btn.className = "flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-300 text-red-700 rounded hover:bg-red-100 text-sm transition shadow-sm ring-2 ring-red-200";
+                    btn.innerHTML = `<i class="ph ph-list-dashes"></i> <span>Show Raw Log</span>`;
+                } else {
+                    btn.className = "flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 text-slate-600 rounded hover:bg-slate-50 text-sm transition shadow-sm";
+                    btn.innerHTML = `<i class="ph ph-crosshair"></i> <span>Velocity Scanner</span>`;
+                }
+                renderTable();
+            };
+
+            window.escalateBundle = function(cust) {
+                if (escalatedCustomer) return;
+                
+                escalatedCustomer = cust;
+                
+                const tbody = document.getElementById('case-log-body');
+                const emptyMsg = document.getElementById('empty-log-msg');
+                if(emptyMsg) emptyMsg.remove();
+
+                const tr = document.createElement('tr');
+                tr.className = "bg-slate-800 border-b border-slate-700 hover:bg-slate-750 transition fade-in";
+                tr.innerHTML = `
+                    <td class="px-4 py-2 font-mono text-red-300">HF-${cust}-BUNDLE</td>
+                    <td class="px-4 py-2">${cust}</td>
+                    <td class="px-4 py-2 text-slate-300 text-xs">High Velocity (>20 Tx/Day)</td>
+                    <td class="px-4 py-2"><span class="bg-red-900 text-red-200 px-2 py-0.5 rounded text-xs border border-red-700">50 Tx IDs Attached</span></td>
+                `;
+                tbody.prepend(tr);
+
+                document.getElementById('score-display').innerText = `1 / 1`;
+                
+                renderTable();
+
+                if (currentScene === 2) {
+                    setTimeout(() => {
+                        currentScene = 3;
+                        renderNarration();
+                    }, 1000);
+                }
+            };
+
+            window.resetSimulation = function() {
+                if(!confirm("Start Over?")) return;
+                currentScene = 0;
+                isScanMode = false;
+                escalatedCustomer = null;
+                certName = "";
+                document.getElementById('score-display').innerText = "0 / 1";
+                document.getElementById('case-log-body').innerHTML = `<tr id="empty-log-msg"><td colspan="4" class="px-4 py-8 text-center text-slate-500 italic">No velocity cases created yet.</td></tr>`;
+                
+                initChart();
+                renderTable();
+                renderNarration();
+            };
+
+            window.updateCertificateName = function(val) {
+                certName = val;
+                drawCertificate(val);
+            };
+
+            window.downloadCertificate = function(el) {
+                const canvas = document.getElementById('certCanvas');
+                el.href = canvas.toDataURL("image/png");
+                el.download = `AML_Velocity_Cert_${certName || 'Analyst'}.png`;
+            };
+
+            // ==========================================
+            // HELPERS
+            // ==========================================
+
+            function initChart() {
+                const ctx = document.getElementById('velocityChart').getContext('2d');
+                
+                // Hardcoded counts for the visual
+                const labels = ['C10', 'C11', 'C12', 'C13'];
+                const data = [50, 10, 1, 1];
+
+                if(chartInstance) chartInstance.destroy();
+
+                chartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Transactions on Mar 15',
+                            data: data,
+                            backgroundColor: labels.map(l => l === 'C10' ? '#ef4444' : '#cbd5e1'),
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+
+            function renderNarration() {
+                const container = document.getElementById('narration-container');
+                const scene = scenes[currentScene];
+                container.innerHTML = `
+                    <div class="fade-in">
+                        <h3 class="font-bold text-lg text-slate-800 mb-2">${scene.title}</h3>
+                        ${scene.content}
+                    </div>
+                `;
+                
+                // Dots logic
+                for(let i=1; i<=4; i++) {
+                    document.getElementById(`dot-${i}`).className = (i-1) === currentScene ? "w-2 h-2 rounded-full bg-red-600" : "w-2 h-2 rounded-full bg-slate-300";
+                }
+
+                document.getElementById('btn-prev').disabled = currentScene === 0;
+                document.getElementById('btn-next').disabled = currentScene === scenes.length - 1;
+                
+                // UI Toggles
+                const scanBtn = document.getElementById('scan-btn');
+                if(currentScene === 2 && !isScanMode) scanBtn.classList.add('btn-glow');
+                else scanBtn.classList.remove('btn-glow');
+
+                // Cert View Toggle
+                const certView = document.getElementById('certificate-view');
+                const panels = ['stats-panel', 'dataset-panel', 'caselog-panel'].map(id => document.getElementById(id));
+                
+                if (currentScene === 3) {
+                    panels.forEach(p => p.classList.add('hidden'));
+                    certView.classList.remove('hidden');
+                    drawCertificate(certName || ""); 
+                } else {
+                    panels.forEach(p => p.classList.remove('hidden'));
+                    certView.classList.add('hidden');
+                }
+            }
+
+            function renderTable() {
+                const container = document.getElementById('transaction-table');
+                const header = document.getElementById('table-header');
+                container.innerHTML = '';
+
+                if (isScanMode) {
+                    // SCANNER VIEW
+                    header.innerHTML = `
+                        <div class="col-span-3">Customer</div>
+                        <div class="col-span-3 text-right">Daily Count</div>
+                        <div class="col-span-3 text-right">Total Volume</div>
+                        <div class="col-span-3 text-center">Velocity Risk</div>
+                    `;
+
+                    // Hardcoded summary for simplicity of simulation
+                    const summaries = [
+                        { cust: 'C10', count: 50, sum: 10000 },
+                        { cust: 'C11', count: 10, sum: 15000 },
+                        { cust: 'C12', count: 1, sum: 50 },
+                        { cust: 'C13', count: 1, sum: 120 }
+                    ];
+
+                    summaries.forEach(s => {
+                        const isHighVelocity = s.count >= 20;
+                        const isEscalated = escalatedCustomer === s.cust;
+                        
+                        const row = document.createElement('div');
+                        row.className = `grid grid-cols-12 p-3 text-sm items-center border-b border-slate-100 hover:bg-slate-50 ${isHighVelocity ? 'bg-red-50' : ''}`;
+                        
+                        let actionHtml = '<span class="text-slate-400 text-xs">Normal</span>';
+                        if (isEscalated) {
+                            actionHtml = `<span class="text-green-600 font-bold text-xs flex items-center justify-center gap-1"><i class="ph ph-check-circle"></i> Escalated</span>`;
+                        } else if (isHighVelocity) {
+                            actionHtml = `<button onclick="escalateBundle('${s.cust}')" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded shadow flex items-center gap-1 mx-auto transition transform active:scale-95"><i class="ph ph-warning"></i> Escalate Bundle</button>`;
+                        }
+
+                        row.innerHTML = `
+                            <div class="col-span-3 font-bold ${isHighVelocity ? 'text-red-700' : 'text-slate-700'}">${s.cust}</div>
+                            <div class="col-span-3 text-right font-mono font-bold ${isHighVelocity ? 'text-red-600' : ''}">${s.count} Tx</div>
+                            <div class="col-span-3 text-right font-mono">$${s.sum.toLocaleString()}</div>
+                            <div class="col-span-3 text-center">${actionHtml}</div>
+                        `;
+                        container.appendChild(row);
+                    });
+
+                } else {
+                    // RAW VIEW
+                    header.innerHTML = `
+                        <div class="col-span-2">Date</div>
+                        <div class="col-span-2">Tx ID</div>
+                        <div class="col-span-2">Customer</div>
+                        <div class="col-span-3 text-right pr-4">Amount (USD)</div>
+                        <div class="col-span-3 text-center">Status</div>
+                    `;
+
+                    // Show top 20 rows only to not crash browser with 60 DOM elements unnecessarily, 
+                    // or show C10 mainly
+                    const displayTxs = transactions.slice(0, 15).concat(transactions.slice(50, 55)); // Mix of C10 and C11
+
+                    displayTxs.forEach(tx => {
+                        const isEscalated = escalatedCustomer === tx.cust;
+                        const row = document.createElement('div');
+                        row.className = `grid grid-cols-12 p-3 text-sm items-center border-b border-slate-100 hover:bg-slate-50`;
+                        
+                        row.innerHTML = `
+                            <div class="col-span-2 font-mono text-slate-600">${tx.date}</div>
+                            <div class="col-span-2 text-slate-500">${tx.id}</div>
+                            <div class="col-span-2 font-medium text-slate-700">${tx.cust}</div>
+                            <div class="col-span-3 text-right pr-4 font-mono text-slate-600">$${tx.amount}</div>
+                            <div class="col-span-3 text-center">
+                                ${isEscalated ? '<span class="text-green-600 text-xs">Bundled</span>' : '<span class="text-slate-400 text-xs">-</span>'}
+                            </div>
+                        `;
+                        container.appendChild(row);
+                    });
+                    
+                    // "More rows" indicator
+                    const more = document.createElement('div');
+                    more.className = "p-3 text-center text-xs text-slate-400 italic bg-slate-50";
+                    more.innerText = "... 40+ more transactions hidden ...";
+                    container.appendChild(more);
+                }
+            }
+
+            function drawCertificate(name) {
+                const canvas = document.getElementById('certCanvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Background
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, 800, 600);
+                
+                // Border
+                ctx.strokeStyle = "#dc2626"; // Red 600
+                ctx.lineWidth = 15;
+                ctx.strokeRect(20, 20, 760, 560);
+                ctx.strokeStyle = "#1e293b"; 
+                ctx.lineWidth = 4;
+                ctx.strokeRect(35, 35, 730, 530);
+
+                // Header
+                ctx.fillStyle = "#1e293b"; 
+                ctx.textAlign = "left";
+                ctx.font = "bold 24px 'Cinzel', serif";
+                ctx.fillText("AML, KYC & Transaction", 60, 80);
+                ctx.fillText("Monitoring Compliance Bootcamp", 60, 110);
+
+                // Logo
+                if (UDEMY_LOGO_BASE64 && logoImgObj.complete) {
+                     const aspect = logoImgObj.width / logoImgObj.height;
+                     ctx.drawImage(logoImgObj, 730 - (50*aspect), 65, 50*aspect, 50);
+                } else {
+                    ctx.fillStyle = "#a435f0"; 
+                    ctx.beginPath();
+                    ctx.arc(705, 90, 25, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 20px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText("U", 705, 97);
+                }
+
+                // Main
+                ctx.textAlign = "center";
+                ctx.fillStyle = "#dc2626"; 
+                ctx.font = "bold 40px 'Cinzel', serif";
+                ctx.fillText("Velocity Detected!", 400, 200);
+
+                ctx.fillStyle = "#475569"; 
+                ctx.font = "18px 'Inter', sans-serif";
+                ctx.fillText("You successfully identified high-frequency risk patterns:", 400, 240);
+
+                ctx.fillStyle = "#1e293b"; 
+                ctx.font = "bold 28px 'Inter', sans-serif";
+                ctx.fillText("High Frequency / Velocity Scenario", 400, 280);
+
+                // Name
+                const display = name || "Analyst Name";
+                ctx.font = "700 48px 'Playfair Display', serif";
+                ctx.fillStyle = "#dc2626"; 
+                ctx.fillText(display, 400, 360);
+                
+                ctx.beginPath();
+                ctx.moveTo(250, 370);
+                ctx.lineTo(550, 370);
+                ctx.strokeStyle = "#cbd5e1"; 
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Footer
+                if (COURSE_IMAGE_BASE64 && courseImgObj.complete) {
+                     ctx.drawImage(courseImgObj, 60, 440, 120, 80);
+                } else {
+                    ctx.fillStyle = "#dc2626";
+                    ctx.fillRect(60, 440, 120, 80);
+                    ctx.fillStyle = "white";
+                    ctx.font = "bold 12px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText("AML SIM", 120, 485);
+                }
+
+                ctx.textAlign = "left";
+                ctx.fillStyle = "#334155";
+                ctx.font = "bold 16px 'Inter', sans-serif";
+                ctx.fillText("Course: AML, KYC & Transaction Monitoring Compliance Bootcamp", 200, 470);
+                ctx.fillText("Instructor: Sudeep Suresh", 200, 500);
+
+                ctx.fillStyle = "#94a3b8";
+                ctx.font = "12px 'Inter', sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("This badge certifies mastery of velocity analysis.", 400, 560);
+            }
+
+            // Init
+            window.addEventListener('load', () => {
+                initChart();
+                renderNarration();
+                renderTable();
+            });
+        })();
+    </script>
+</body>
+</html>
