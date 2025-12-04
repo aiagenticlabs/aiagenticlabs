@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AML Sim: Large Cash Reporting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Fonts for Certificate -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Pinyon+Script&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .row-highlight { background-color: #fee2e2; border-left: 4px solid #ef4444; }
+        .row-normal { border-left: 4px solid transparent; }
+
+        /* Glow Animation for Task Guidance */
+        @keyframes pulse-blue {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+        .btn-glow {
+            animation: pulse-blue 2s infinite;
+            border-color: #3b82f6 !important;
+        }
+
+        /* Certificate Preview Styling */
+        #cert-preview-container {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
+
+    <!-- Top Navigation -->
+    <header class="bg-slate-900 text-white p-4 shadow-md shrink-0 flex justify-between items-center z-20">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg">
+                <i class="ph ph-money text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg tracking-wide">Scenario: Large Cash Reporting</h1>
+                <a href="https://www.udemy.com/course/anti-money-laundering-aml-transaction-monitoring-analyst-training/?referralCode=405F72270A13A5D0E92C" 
+                   target="_blank" 
+                   class="text-[11px] text-blue-300 hover:text-white underline block transition-colors mt-0.5">
+                   Simulation part of AML, KYC and Transaction Monitoring Compliance Bootcamp ↗
+                </a>
+            </div>
+        </div>
+        <div class="flex items-center gap-6">
+            <div class="text-right hidden md:block">
+                <div class="text-xs text-slate-400">Current Threshold Rule</div>
+                <div class="font-mono font-bold text-amber-400">> $15,000.00</div>
+            </div>
+            <div class="h-8 w-px bg-slate-700 hidden md:block"></div>
+            <div class="text-right">
+                <div class="text-xs text-slate-400">Cases Logged</div>
+                <div id="score-display" class="font-bold text-xl">0 / 7</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <!-- Nudge Modal (Hidden by default) -->
+        <div id="nudge-modal" class="absolute inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm fade-in">
+            <div class="bg-white rounded-lg shadow-2xl p-6 max-w-sm w-full mx-4 border-t-4 border-amber-500">
+                <div class="flex items-start gap-3 mb-4">
+                    <div class="bg-amber-100 p-2 rounded-full text-amber-600">
+                        <i class="ph ph-warning-circle text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg text-slate-800">Task Incomplete</h3>
+                        <p class="text-sm text-slate-600 mt-1">
+                            You have identified <span id="nudge-count" class="font-bold">0</span> out of <span class="font-bold">7</span> suspicious cases.
+                        </p>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500 mb-6 bg-slate-50 p-3 rounded">
+                    Remember: Any cash deposit strictly greater than <strong>$15,000</strong> must be flagged. Check the amounts carefully!
+                </p>
+                <div class="flex justify-end gap-3">
+                    <button onclick="closeNudge()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-sm font-medium transition">
+                        Keep Looking
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Left Sidebar: Narration & Guide -->
+        <aside class="w-1/3 min-w-[340px] bg-white border-r border-slate-200 flex flex-col shadow-lg z-10 relative">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                    <i class="ph ph-graduation-cap text-blue-600"></i> 
+                    Task Guidance
+                </h2>
+                <button onclick="resetSimulation()" class="text-xs text-slate-500 hover:text-red-600 flex items-center gap-1 transition">
+                    <i class="ph ph-arrows-counter-clockwise"></i> Start Over
+                </button>
+            </div>
+            
+            <div id="narration-container" class="p-6 flex-1 overflow-y-auto space-y-6">
+                <!-- Dynamic Content Injected Here -->
+            </div>
+
+            <!-- Navigation Controls -->
+            <div class="p-4 border-t border-slate-200 bg-white flex justify-between items-center">
+                <button onclick="prevScene()" id="btn-prev" class="px-4 py-2 text-slate-500 hover:text-slate-800 text-sm font-medium disabled:opacity-30" disabled>
+                    <i class="ph ph-arrow-left"></i> Back
+                </button>
+                <div class="flex gap-1">
+                    <span id="dot-1" class="w-2 h-2 rounded-full bg-blue-600"></span>
+                    <span id="dot-2" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                    <span id="dot-3" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                    <span id="dot-4" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                </div>
+                <button onclick="attemptNextScene()" id="btn-next" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded shadow transition">
+                    Next <i class="ph ph-arrow-right"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="w-2/3 bg-slate-100 p-6 flex flex-col gap-6 overflow-hidden relative">
+            
+            <!-- Dashboard Stats -->
+            <div id="stats-panel" class="grid grid-cols-3 gap-4 shrink-0 transition-all duration-500">
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                    <div class="text-xs text-slate-500 font-semibold uppercase mb-2">Transaction Volume</div>
+                    <div class="h-24">
+                        <canvas id="volumeChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 col-span-2 flex flex-col justify-center">
+                    <div class="flex items-start gap-4">
+                        <div class="p-3 bg-amber-100 text-amber-600 rounded-full">
+                            <i class="ph ph-warning text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800">Regulatory Alert</h3>
+                            <p class="text-sm text-slate-600 mt-1">
+                                Cash deposits exceeding <strong>$15,000</strong> must be flagged for source verification to prevent structuring and placement.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction Dataset -->
+            <div id="dataset-panel" class="bg-white rounded-lg shadow-md border border-slate-200 flex-1 flex flex-col overflow-hidden transition-all duration-500">
+                <div class="p-3 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <h3 class="font-bold text-sm text-slate-700">📅 Daily Cash Blotter: Jan 1 - Jan 15, 2024</h3>
+                    <button id="filter-btn" onclick="toggleFilter()" class="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 text-slate-600 rounded hover:bg-slate-50 text-sm transition shadow-sm relative">
+                        <i class="ph ph-funnel"></i>
+                        <span>Filter: > $15,000</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-12 bg-slate-100 p-3 text-xs font-bold text-slate-500 uppercase border-b border-slate-200">
+                    <div class="col-span-2">Date</div>
+                    <div class="col-span-2">Tx ID</div>
+                    <div class="col-span-2">Customer</div>
+                    <div class="col-span-3 text-right pr-4">Amount (USD)</div>
+                    <div class="col-span-3 text-center">Action</div>
+                </div>
+
+                <div id="transaction-table" class="overflow-y-auto flex-1 bg-white">
+                    <!-- Rows injected by JS -->
+                </div>
+            </div>
+
+            <!-- Case Log -->
+            <div id="caselog-panel" class="h-48 bg-slate-800 rounded-lg shadow-inner flex flex-col shrink-0 text-white transition-all duration-500">
+                <div class="p-3 bg-slate-900 border-b border-slate-700 flex justify-between items-center">
+                    <h3 class="font-bold text-sm flex items-center gap-2">
+                        <i class="ph ph-file-text"></i> Case Log (Escalations)
+                    </h3>
+                    <span class="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">Requires Review</span>
+                </div>
+                <div class="overflow-y-auto p-0">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-400 uppercase bg-slate-800 sticky top-0">
+                            <tr>
+                                <th class="px-4 py-2">Case ID</th>
+                                <th class="px-4 py-2">Customer</th>
+                                <th class="px-4 py-2">Trigger Event</th>
+                                <th class="px-4 py-2">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="case-log-body" class="text-slate-300">
+                            <tr id="empty-log-msg">
+                                <td colspan="4" class="px-4 py-8 text-center text-slate-500 italic">
+                                    No cases logged yet. Filter transactions and escalate suspicious items.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CERTIFICATE VIEW (Initially Hidden) -->
+            <div id="certificate-view" class="hidden absolute inset-0 bg-slate-100 z-20 flex flex-col items-center justify-center p-6 fade-in">
+                <div class="w-full max-w-4xl flex gap-6 h-full">
+                    <!-- Preview Side -->
+                    <div class="flex-1 flex flex-col justify-center items-center">
+                        <h3 class="text-slate-500 text-xs uppercase font-bold mb-4 tracking-widest">Live Certificate Preview</h3>
+                        <div id="cert-preview-container" class="relative bg-white p-1 rounded-lg border border-slate-200">
+                             <!-- Canvas rendered here -->
+                             <canvas id="certCanvas" width="800" height="600" class="w-full h-auto max-h-[500px] shadow-sm"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // ==========================================
+        // CONFIGURATION: PASTE YOUR IMAGES HERE
+        // ==========================================
+        
+        // 1. Visit https://www.base64-image.de/
+        // 2. Upload your image
+        // 3. Click "Copy Image" or "Copy Base64"
+        // 4. Paste the long string inside the quotes below
+        
+        const COURSE_IMAGE_BASE64 = ""; // Paste Course Image Base64 here
+        const UDEMY_LOGO_BASE64 = "";   // Paste Udemy/Partner Logo Base64 here
+
+        // ==========================================
+
+        // --- IMAGE LOADER ---
+        const courseImgObj = new Image();
+        const logoImgObj = new Image();
+        
+        if (COURSE_IMAGE_BASE64) courseImgObj.src = COURSE_IMAGE_BASE64;
+        if (UDEMY_LOGO_BASE64) logoImgObj.src = UDEMY_LOGO_BASE64;
+
+        // --- DATA ---
+        const transactions = [
+            { id: 'TX-101', cust: 'C01', date: '2024-01-01', amount: 5000, type: 'Cash Deposit' },
+            { id: 'TX-102', cust: 'C02', date: '2024-01-02', amount: 12000, type: 'Cash Deposit' },
+            { id: 'LD-003', cust: 'C03', date: '2024-01-03', amount: 16000, type: 'Cash Deposit' }, // Alert
+            { id: 'LD-004', cust: 'C04', date: '2024-01-04', amount: 25000, type: 'Cash Deposit' }, // Alert
+            { id: 'TX-105', cust: 'C05', date: '2024-01-05', amount: 8000, type: 'Cash Deposit' },
+            { id: 'LD-006', cust: 'C06', date: '2024-01-06', amount: 15500, type: 'Cash Deposit' }, // Alert
+            { id: 'TX-107', cust: 'C07', date: '2024-01-07', amount: 14900, type: 'Cash Deposit' },
+            { id: 'LD-008', cust: 'C08', date: '2024-01-08', amount: 30000, type: 'Cash Deposit' }, // Alert
+            { id: 'LD-009', cust: 'C09', date: '2024-01-09', amount: 17000, type: 'Cash Deposit' }, // Alert
+            { id: 'TX-110', cust: 'C10', date: '2024-01-10', amount: 4500, type: 'Cash Deposit' },
+            { id: 'TX-111', cust: 'C11', date: '2024-01-11', amount: 9000, type: 'Cash Deposit' },
+            { id: 'TX-112', cust: 'C12', date: '2024-01-12', amount: 13000, type: 'Cash Deposit' },
+            { id: 'LD-013', cust: 'C13', date: '2024-01-13', amount: 20000, type: 'Cash Deposit' }, // Alert
+            { id: 'TX-114', cust: 'C14', date: '2024-01-14', amount: 6000, type: 'Cash Deposit' },
+            { id: 'LD-015', cust: 'C15', date: '2024-01-15', amount: 18000, type: 'Cash Deposit' }  // Alert
+        ];
+
+        const THRESHOLD = 15000;
+        let chartInstance = null;
+        let currentScene = 0;
+        let isFiltered = false;
+        let loggedCases = new Set();
+        let certName = "";
+
+        // --- NARRATION SCENES ---
+        const getScenes = () => [
+            {
+                title: "1. The Threshold Rule",
+                content: `
+                    <div class="space-y-4 text-sm text-slate-600">
+                        <p><strong>Why do we monitor large deposits?</strong></p>
+                        <p>Cash deposits over certain thresholds almost always raise red flags. In many jurisdictions, banks must file reports for any deposit over <strong>$15,000</strong>.</p>
+                        <div class="bg-blue-50 border-l-4 border-blue-500 p-3 text-blue-800 text-xs">
+                            <strong>Your Goal:</strong> Find the transactions that breach this rule.
+                        </div>
+                    </div>
+                `
+            },
+            {
+                title: "2. Real-World Context",
+                content: `
+                    <div class="space-y-4 text-sm text-slate-600">
+                        <p>Several banks have faced fines for failing to detect or report large cash deposits.</p>
+                        <div class="bg-red-50 border border-red-200 p-3 rounded">
+                            <h4 class="font-bold text-red-700 text-xs uppercase mb-1">Headline Example</h4>
+                            <p class="italic text-slate-600 text-xs">"Bank Fined for Missed Cash Deposit Alerts: Criminals laundered millions via repeated $16,500 deposits."</p>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                title: "3. Hands-On Task",
+                content: `
+                    <div class="space-y-4 text-sm text-slate-600">
+                        <p>Now let’s put this into practice.</p>
+                        <ul class="list-disc ml-5 space-y-2">
+                            <li><strong>Step 1:</strong> Use the <span class="text-blue-600 font-bold">Glowing Filter Button</span> to highlight deposits > $15,000.</li>
+                            <li><strong>Step 2:</strong> Review the results.</li>
+                            <li><strong>Step 3:</strong> Click <strong>Escalate</strong> on flagged rows.</li>
+                        </ul>
+                        <div class="mt-4 p-3 bg-amber-50 rounded border border-amber-200 text-xs text-amber-800">
+                            <strong>Requirement:</strong> You must identify all 7 suspicious cases to proceed.
+                        </div>
+                    </div>
+                `
+            },
+            {
+                title: "4. Certificate of Completion",
+                content: `
+                    <div class="space-y-4 text-sm text-slate-600">
+                        <p class="text-green-600 font-bold">🎉 Congratulations! You identified all 7 cases.</p>
+                        <p>Fantastic work applying hands-on AML skills. Enter your name below to personalize your badge.</p>
+                        
+                        <div class="bg-slate-50 p-4 rounded border border-slate-200 mt-4 shadow-sm">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Analyst Name</label>
+                            <input type="text" id="cert-name-input" 
+                                   oninput="updateCertificateName(this.value)"
+                                   placeholder="Type Your Name Here..." 
+                                   class="w-full p-2.5 text-base border border-slate-300 rounded mb-3 focus:ring-2 focus:ring-blue-500 outline-none">
+                            
+                            <a id="download-link" href="#" onclick="downloadCertificate(this)" class="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded text-sm font-bold transition shadow-lg mt-2 flex items-center justify-center gap-2">
+                                <i class="ph ph-download-simple text-lg"></i> Download Certificate
+                            </a>
+                            <p class="text-[10px] text-center text-slate-400 mt-2">
+                                💡 Tip: Share this on LinkedIn with #AMLBootcamp
+                            </p>
+                        </div>
+                    </div>
+                `
+            }
+        ];
+
+        let scenes = getScenes();
+
+        // --- CORE FUNCTIONS ---
+
+        function initChart() {
+            const ctx = document.getElementById('volumeChart').getContext('2d');
+            const above = transactions.filter(t => t.amount > THRESHOLD).length;
+            const below = transactions.length - above;
+
+            if(chartInstance) chartInstance.destroy();
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Normal', 'Alert (>15k)'],
+                    datasets: [{
+                        data: [below, above],
+                        backgroundColor: ['#cbd5e1', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    cutout: '70%',
+                    animation: { animateScale: true }
+                }
+            });
+        }
+
+        function renderNarration() {
+            const container = document.getElementById('narration-container');
+            const scene = scenes[currentScene];
+            
+            container.innerHTML = `
+                <div class="fade-in">
+                    <h3 class="font-bold text-lg text-slate-800 mb-2">${scene.title}</h3>
+                    ${scene.content}
+                </div>
+            `;
+
+            for(let i=1; i<=scenes.length; i++) {
+                const el = document.getElementById(`dot-${i}`);
+                if(el) el.className = (i-1) === currentScene ? "w-2 h-2 rounded-full bg-blue-600" : "w-2 h-2 rounded-full bg-slate-300";
+            }
+
+            document.getElementById('btn-prev').disabled = currentScene === 0;
+            document.getElementById('btn-next').disabled = currentScene === scenes.length - 1;
+            
+            toggleGlowEffect();
+            handleViewTransition();
+        }
+
+        function handleViewTransition() {
+            const certView = document.getElementById('certificate-view');
+            const panels = ['stats-panel', 'dataset-panel', 'caselog-panel'].map(id => document.getElementById(id));
+            
+            if (currentScene === 3) {
+                panels.forEach(p => p.classList.add('hidden'));
+                certView.classList.remove('hidden');
+                drawCertificate(certName || ""); 
+            } else {
+                panels.forEach(p => p.classList.remove('hidden'));
+                certView.classList.add('hidden');
+            }
+        }
+
+        function attemptNextScene() {
+            if (currentScene === 2) {
+                const totalAlerts = transactions.filter(t => t.amount > THRESHOLD).length;
+                if (loggedCases.size < totalAlerts) {
+                    showNudge(totalAlerts - loggedCases.size);
+                    return;
+                }
+            }
+            if(currentScene < scenes.length - 1) {
+                currentScene++;
+                renderNarration();
+            }
+        }
+
+        function showNudge(remaining) {
+            document.getElementById('nudge-count').innerText = loggedCases.size;
+            document.getElementById('nudge-modal').classList.remove('hidden');
+        }
+
+        function closeNudge() {
+            document.getElementById('nudge-modal').classList.add('hidden');
+        }
+
+        function toggleGlowEffect() {
+            const btn = document.getElementById('filter-btn');
+            if (currentScene === 2 && !isFiltered) {
+                btn.classList.add('btn-glow');
+            } else {
+                btn.classList.remove('btn-glow');
+            }
+        }
+
+        function prevScene() {
+            if(currentScene > 0) {
+                currentScene--;
+                renderNarration();
+            }
+        }
+
+        function renderTable() {
+            const table = document.getElementById('transaction-table');
+            table.innerHTML = '';
+
+            transactions.forEach(tx => {
+                const isAlert = tx.amount > THRESHOLD;
+                const isLogged = loggedCases.has(tx.id);
+                
+                let rowClass = "row-normal border-b border-slate-100 hover:bg-slate-50 transition";
+                if (isFiltered && isAlert) rowClass = "row-highlight border-b border-red-100";
+                
+                let opacityClass = (isFiltered && !isAlert) ? "opacity-40" : "opacity-100";
+
+                const row = document.createElement('div');
+                row.className = `grid grid-cols-12 p-3 text-sm items-center ${rowClass} ${opacityClass}`;
+                
+                let actionBtn = '';
+                if (isLogged) {
+                    actionBtn = `<span class="text-green-600 font-bold text-xs flex items-center justify-center gap-1"><i class="ph ph-check-circle"></i> Logged</span>`;
+                } else if (isAlert && isFiltered) {
+                    actionBtn = `<button onclick="escalate('${tx.id}')" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded shadow flex items-center gap-1 mx-auto transition transform active:scale-95"><i class="ph ph-warning"></i> Escalate</button>`;
+                } else {
+                    actionBtn = `<span class="text-slate-400 text-xs">-</span>`;
+                }
+
+                row.innerHTML = `
+                    <div class="col-span-2 font-mono text-slate-600">${tx.date}</div>
+                    <div class="col-span-2 text-slate-500">${tx.id}</div>
+                    <div class="col-span-2 font-medium text-slate-700">${tx.cust}</div>
+                    <div class="col-span-3 text-right pr-4 font-mono ${isAlert && isFiltered ? 'text-red-700 font-bold' : 'text-slate-600'}">
+                        $${tx.amount.toLocaleString()}
+                    </div>
+                    <div class="col-span-3 text-center">
+                        ${actionBtn}
+                    </div>
+                `;
+                table.appendChild(row);
+            });
+        }
+
+        function toggleFilter() {
+            isFiltered = !isFiltered;
+            const btn = document.getElementById('filter-btn');
+            
+            if (isFiltered) {
+                btn.className = "flex items-center gap-2 px-3 py-1.5 bg-red-50 border border-red-300 text-red-700 rounded hover:bg-red-100 text-sm transition shadow-sm ring-2 ring-red-200 relative";
+                btn.innerHTML = `<i class="ph ph-funnel-x"></i> <span>Clear Filter</span>`;
+                if(currentScene < 2) {
+                    currentScene = 2;
+                    renderNarration();
+                }
+            } else {
+                btn.className = "flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 text-slate-600 rounded hover:bg-slate-50 text-sm transition shadow-sm relative";
+                btn.innerHTML = `<i class="ph ph-funnel"></i> <span>Filter: > $15,000</span>`;
+            }
+            toggleGlowEffect();
+            renderTable();
+        }
+
+        function escalate(id) {
+            if (loggedCases.has(id)) return;
+            const tx = transactions.find(t => t.id === id);
+            if (!tx) return;
+
+            loggedCases.add(id);
+            
+            const tbody = document.getElementById('case-log-body');
+            const emptyMsg = document.getElementById('empty-log-msg');
+            if(emptyMsg) emptyMsg.remove();
+
+            const tr = document.createElement('tr');
+            tr.className = "bg-slate-800 border-b border-slate-700 hover:bg-slate-750 transition fade-in";
+            tr.innerHTML = `
+                <td class="px-4 py-2 font-mono text-blue-300">CASE-${tx.id.split('-')[1]}</td>
+                <td class="px-4 py-2">${tx.cust}</td>
+                <td class="px-4 py-2 text-amber-400 text-xs">Amt > $15k ($${tx.amount.toLocaleString()})</td>
+                <td class="px-4 py-2"><span class="bg-blue-900 text-blue-200 px-2 py-0.5 rounded text-xs border border-blue-700">Under Investigation</span></td>
+            `;
+            tbody.prepend(tr);
+
+            const totalAlerts = transactions.filter(t => t.amount > THRESHOLD).length;
+            document.getElementById('score-display').innerText = `${loggedCases.size} / ${totalAlerts}`;
+            renderTable();
+
+            if (loggedCases.size === totalAlerts && currentScene === 2) {
+                setTimeout(() => {
+                    currentScene = 3;
+                    renderNarration();
+                }, 1000);
+            }
+        }
+
+        function resetSimulation() {
+            if(!confirm("Start Over? This will clear your progress.")) return;
+            currentScene = 0;
+            isFiltered = false;
+            loggedCases.clear();
+            certName = "";
+            document.getElementById('score-display').innerText = "0 / 7";
+            document.getElementById('case-log-body').innerHTML = `<tr id="empty-log-msg"><td colspan="4" class="px-4 py-8 text-center text-slate-500 italic">No cases logged yet. Filter transactions and escalate suspicious items.</td></tr>`;
+            const btn = document.getElementById('filter-btn');
+            btn.className = "flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-300 text-slate-600 rounded hover:bg-slate-50 text-sm transition shadow-sm relative";
+            btn.innerHTML = `<i class="ph ph-funnel"></i> <span>Filter: > $15,000</span>`;
+            initChart();
+            renderTable();
+            renderNarration();
+        }
+
+        // --- ENHANCED CERTIFICATE GENERATOR ---
+
+        function updateCertificateName(val) {
+            certName = val;
+            drawCertificate(val);
+        }
+
+        function drawCertificate(name) {
+            const canvas = document.getElementById('certCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 1. Background Paper
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, 800, 600);
+            
+            // 2. Fancy Border
+            ctx.strokeStyle = "#1e3a8a"; // Blue 900
+            ctx.lineWidth = 15;
+            ctx.strokeRect(20, 20, 760, 560);
+            ctx.strokeStyle = "#fbbf24"; // Amber 400
+            ctx.lineWidth = 4;
+            ctx.strokeRect(35, 35, 730, 530);
+
+            // 3. Header Section (Bootcamp Title)
+            ctx.fillStyle = "#1e293b"; 
+            ctx.textAlign = "left";
+            ctx.font = "bold 24px 'Cinzel', serif";
+            ctx.fillText("AML, KYC & Transaction", 60, 80);
+            ctx.fillText("Monitoring Compliance Bootcamp", 60, 110);
+
+            // 4. Logo - Fallback or Image
+            // Check if user provided logo and it is loaded
+            if (UDEMY_LOGO_BASE64 && logoImgObj.complete && logoImgObj.naturalHeight !== 0) {
+                 // Draw User Logo (Top Right)
+                 // Resize to fit approx 120x60
+                 const aspectRatio = logoImgObj.width / logoImgObj.height;
+                 const targetH = 50;
+                 const targetW = targetH * aspectRatio;
+                 ctx.drawImage(logoImgObj, 730 - targetW, 65, targetW, targetH);
+            } else {
+                // Draw Fallback Styled 'U'
+                ctx.fillStyle = "#a435f0"; 
+                ctx.beginPath();
+                ctx.moveTo(680, 60);
+                ctx.lineTo(680, 95);
+                ctx.arc(705, 95, 25, Math.PI, 0, true);
+                ctx.lineTo(730, 60);
+                ctx.fill();
+                ctx.fillStyle = "#1c1d1f";
+                ctx.font = "bold 20px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("Udemy", 705, 115);
+            }
+
+            // 5. Main Title
+            ctx.textAlign = "center";
+            ctx.fillStyle = "#d97706"; 
+            ctx.font = "bold 40px 'Cinzel', serif";
+            ctx.fillText("🎉 Congratulations!", 400, 200);
+
+            // 6. Subtext
+            ctx.fillStyle = "#475569"; 
+            ctx.font = "18px 'Inter', sans-serif";
+            ctx.fillText("You've successfully completed the simulation:", 400, 240);
+
+            // 7. Scenario Name
+            ctx.fillStyle = "#1e3a8a"; 
+            ctx.font = "bold 28px 'Inter', sans-serif";
+            ctx.fillText("Large Cash Reporting Scenario", 400, 280);
+
+            // 8. User Name
+            const display = name || "Your Name Here";
+            ctx.font = "italic bold 50px 'Pinyon Script', cursive";
+            ctx.fillStyle = "#0f172a"; 
+            ctx.fillText(display, 400, 360);
+            
+            // Underline name
+            ctx.beginPath();
+            ctx.moveTo(250, 370);
+            ctx.lineTo(550, 370);
+            ctx.strokeStyle = "#cbd5e1"; 
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 9. Praise Text
+            ctx.fillStyle = "#475569";
+            ctx.font = "italic 16px 'Inter', sans-serif";
+            ctx.fillText("Fantastic work applying hands-on AML skills in this exercise!", 400, 410);
+
+            // 10. Footer Section
+            const imgX = 60, imgY = 440, imgW = 120, imgH = 80;
+
+            // Course Image - Fallback or Image
+            if (COURSE_IMAGE_BASE64 && courseImgObj.complete && courseImgObj.naturalHeight !== 0) {
+                 ctx.drawImage(courseImgObj, imgX, imgY, imgW, imgH);
+            } else {
+                 // Fallback Gradient
+                const grad = ctx.createLinearGradient(imgX, imgY, imgX+imgW, imgY+imgH);
+                grad.addColorStop(0, "#3b82f6");
+                grad.addColorStop(1, "#1e40af");
+                ctx.fillStyle = grad;
+                ctx.fillRect(imgX, imgY, imgW, imgH);
+                ctx.fillStyle = "rgba(255,255,255,0.2)";
+                ctx.beginPath();
+                ctx.arc(imgX + imgW/2, imgY + imgH/2, 30, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "white";
+                ctx.font = "bold 12px sans-serif";
+                ctx.textAlign = "center"; 
+                // Reset align for this block then set back if needed, but here we just draw once
+                ctx.fillText("AML COURSE", imgX + imgW/2, imgY + imgH/2 + 5);
+            }
+
+            // Instructor Info
+            ctx.textAlign = "left";
+            ctx.fillStyle = "#334155";
+            ctx.font = "bold 16px 'Inter', sans-serif";
+            ctx.fillText("Course: AML, KYC & Transaction Monitoring Compliance Bootcamp", 200, 470);
+            ctx.fillText("Instructor: Sudeep Suresh", 200, 500);
+
+            // 11. Disclaimer
+            ctx.fillStyle = "#94a3b8";
+            ctx.font = "12px 'Inter', sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("This simulation badge is for learning practice only.", 400, 560);
+        }
+
+        function downloadCertificate(el) {
+            const canvas = document.getElementById('certCanvas');
+            const dataUrl = canvas.toDataURL("image/png");
+            el.href = dataUrl;
+            el.download = `AML_Certificate_${certName.replace(/\s+/g, '_') || 'Student'}.png`;
+        }
+
+        // --- INIT ---
+        window.addEventListener('load', () => {
+            initChart();
+            renderNarration();
+            renderTable();
+        });
+
+    </script>
+</body>
+</html>
