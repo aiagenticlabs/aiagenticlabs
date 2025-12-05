@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AmlOS - Agentic Monitor</title>
+    <title>Aml-OS - Agentic Monitor</title>
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome for Icons -->
@@ -91,10 +91,67 @@
             animation: pulse 2s infinite;
         }
 
+        /* --- Context Banner --- */
+        .banner {
+            background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .banner-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .banner-icon {
+            font-size: 2rem;
+            color: #60a5fa;
+            background: rgba(255,255,255,0.1);
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .banner-text h2 {
+            margin: 0 0 4px 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .banner-text p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        .banner-tags {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .tag {
+            background: rgba(255,255,255,0.1);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: #e2e8f0;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
         /* --- Main Content --- */
         .container {
             max-width: 1200px;
-            margin: 2rem auto;
+            margin: 0 auto;
             padding: 0 1rem;
         }
 
@@ -103,6 +160,7 @@
             border-radius: 12px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             overflow: hidden;
+            margin-bottom: 3rem;
         }
 
         .card-header {
@@ -322,6 +380,24 @@
         </div>
     </div>
 
+    <!-- Description Banner -->
+    <div class="banner">
+        <div class="banner-content">
+            <div class="banner-icon">
+                <i class="fa-solid fa-network-wired"></i>
+            </div>
+            <div class="banner-text">
+                <h2>AI-Powered AML Workbench</h2>
+                <p>Advanced Financial Crime Detection System using Agentic AI workflows.</p>
+                <div class="banner-tags">
+                    <span class="tag"><i class="fa-solid fa-magnifying-glass"></i> OSINT Scanning</span>
+                    <span class="tag"><i class="fa-solid fa-brain"></i> Semantic Analysis</span>
+                    <span class="tag"><i class="fa-solid fa-scale-balanced"></i> Risk Assessment</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Content -->
     <div class="container">
         <div class="dashboard-card">
@@ -338,8 +414,8 @@
                         <tr>
                             <th width="30%">Entity / Details</th>
                             <th width="15%">Amount</th>
-                            <th width="15%">Legacy Rule </th>
-                            <th width="20%">AI Agent </th>
+                            <th width="15%">Legacy Rule</th>
+                            <th width="20%">AI Agent</th>
                             <th width="20%">Action</th>
                         </tr>
                     </thead>
