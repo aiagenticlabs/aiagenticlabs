@@ -36,6 +36,7 @@
             padding: 0;
             color: var(--text-primary);
             -webkit-font-smoothing: antialiased;
+            padding-bottom: 80px; /* Space for footer */
         }
 
         /* --- Header --- */
@@ -89,6 +90,11 @@
             background-color: var(--status-green-text);
             border-radius: 50%;
             animation: pulse 2s infinite;
+        }
+
+        .dot.test-mode {
+            background-color: var(--status-yellow-text);
+            animation: none;
         }
 
         /* --- Context Banner --- */
@@ -359,6 +365,83 @@
             color: var(--text-secondary);
         }
 
+        /* --- Footer & Toggle --- */
+        .footer-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.85rem;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 900;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Switch UI */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+        }
+
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #f1c40f; /* Yellow for Test/Dev mode */
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px #f1c40f;
+        }
+
+        input:checked + .slider:before {
+            -webkit-transform: translateX(18px);
+            -ms-transform: translateX(18px);
+            transform: translateX(18px);
+        }
+
         /* --- Animations --- */
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         @keyframes pulse-border { 0% { border-color: transparent; } 50% { border-color: #f1c40f; } 100% { border-color: transparent; } }
@@ -374,9 +457,9 @@
             <div class="brand-icon"><i class="fa-solid fa-robot"></i></div>
             Aml-OS <span style="font-weight: 400; color: var(--text-secondary); font-size: 1rem;">| AiAgenticLabs.net</span>
         </div>
-        <div class="live-indicator">
-            <div class="dot"></div>
-            Live Gateway Connection
+        <div class="live-indicator" id="header-indicator">
+            <div class="dot" id="header-dot"></div>
+            <span id="header-text">Live Gateway Connection</span>
         </div>
     </div>
 
@@ -453,36 +536,67 @@
         </div>
     </div>
 
+    <!-- Footer Switch -->
+    <div class="footer-bar">
+        <div class="toggle-container">
+            <span>Production Mode</span>
+            <label class="switch">
+                <input type="checkbox" id="devModeToggle" onchange="toggleDevMode()">
+                <span class="slider"></span>
+            </label>
+            <span>Dev Mode (Test URL)</span>
+        </div>
+    </div>
+
 <script>
     // --- CONFIGURATION ---
-    // Use the ABSOLUTE URL to avoid "Failed to parse URL" errors in preview/blob environments.
-    // Ensure you have uploaded 'companies.csv' to this path on your server.
     const CSV_FILE = 'https://aiagenticlabs.net/aml-transaction-monitoring/aml-agent-demo/companies.csv'; 
     
-    // Your n8n Webhook
-    // Changed to PRODUCTION URL (removed -test) since workflow is Active
-    const N8N_WEBHOOK = "https://n8n.aiagenticlabs.net/webhook/check-transaction"; 
+    // --- WEBHOOK URLS ---
+    const WEBHOOK_PROD = "https://n8n.aiagenticlabs.net/webhook/check-transaction"; 
+    const WEBHOOK_TEST = "https://n8n.aiagenticlabs.net/webhook-test/check-transaction"; 
 
     // --- STATE ---
     const reports = {};
+    let isDevMode = false; // Default to Production
+
+    // --- TOGGLE LOGIC ---
+    function toggleDevMode() {
+        const checkbox = document.getElementById('devModeToggle');
+        const headerText = document.getElementById('header-text');
+        const headerDot = document.getElementById('header-dot');
+        const headerInd = document.getElementById('header-indicator');
+
+        isDevMode = checkbox.checked;
+
+        if (isDevMode) {
+            console.log("Switched to Dev Mode (Test URL)");
+            headerText.innerText = "Dev Mode (Listening via Test URL)";
+            headerDot.classList.add('test-mode');
+            headerInd.style.border = "1px solid #f1c40f";
+        } else {
+            console.log("Switched to Production Mode (Live URL)");
+            headerText.innerText = "Live Gateway Connection";
+            headerDot.classList.remove('test-mode');
+            headerInd.style.border = "none";
+        }
+    }
 
     // --- INITIALIZATION ---
     async function loadData() {
         const tableBody = document.getElementById('tx-table');
         
         try {
-            // Attempt to fetch from the server
             const response = await fetch(CSV_FILE);
             
             if (!response.ok) {
-                // If 404 (file not uploaded yet) or other error, throw to catch block
                 throw new Error(`Server returned ${response.status}: Failed to load CSV data`);
             }
             
             const data = await response.text();
             const rows = data.split('\n').slice(1); // Skip header
 
-            tableBody.innerHTML = ''; // Clear loading state
+            tableBody.innerHTML = ''; 
 
             rows.forEach((row, index) => {
                 const cols = row.split(',');
@@ -492,10 +606,10 @@
                 const entity = cols[1].trim();
                 const industry = cols[2].trim();
                 
-                // Demo Logic: Randomize amounts
+                // Demo Logic
                 let amount = Math.floor(Math.random() * (9900 - 4000) + 4000); 
                 if (id === '103') amount = 12500;
-                if (id === '101' || id === '102') amount = 9800; // The "Structurer" sweet spot
+                if (id === '101' || id === '102') amount = 9800; 
 
                 const isLegacySafe = amount < 10000;
                 
@@ -527,13 +641,12 @@
             });
 
         } catch (e) {
-            console.warn("Could not load live CSV data (likely file not uploaded or preview env restriction). Switching to built-in demo data.");
-            // Fallback for demo if CSV fetch fails 
+            console.warn("Switching to fallback data...");
             fallbackLoad();
         }
     }
 
-    // --- FALLBACK DATA (If CSV fetch fails) ---
+    // --- FALLBACK DATA ---
     function fallbackLoad() {
         const tableBody = document.getElementById('tx-table');
         const fallbackData = [
@@ -580,12 +693,13 @@
         const statusCell = document.getElementById(`status-${id}`);
         const viewBtn = document.getElementById(`btn-view-${id}`);
         
-        // 1. UI: Set to Scanning
         statusCell.innerHTML = `<span class="badge status-scanning"><i class="fa-solid fa-circle-notch fa-spin"></i> Agent Thinking...</span>`;
         
+        // Select URL based on Toggle State
+        const targetUrl = isDevMode ? WEBHOOK_TEST : WEBHOOK_PROD;
+
         try {
-            // 2. API Call to n8n
-            const response = await fetch(N8N_WEBHOOK, {
+            const response = await fetch(targetUrl, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ receiver: receiver, amount: amount })
@@ -593,40 +707,46 @@
             
             const data = await response.json();
             
-            // 3. Handle Response
-            // Depending on how n8n returns data (sometimes stringified JSON, sometimes Object)
-            // We stringify it for display purposes
-            const fullText = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
-            
-            // Save for Modal
-            reports[id] = formatReport(fullText);
+            // Clean Response
+            let finalReasoning = "";
+            let finalStatus = "";
 
-            // 4. Determine Status based on keywords in AI response
-            // REFINED LOGIC: Case-insensitive check for explicit negative keywords.
-            // "Risk" alone is NOT enough because "Low Risk" triggers false positives.
-            const upperText = fullText.toUpperCase();
+            if (data.output) {
+                try {
+                    const innerJson = JSON.parse(data.output);
+                    finalReasoning = innerJson.reasoning || data.output;
+                    finalStatus = innerJson.status || "UNKNOWN";
+                } catch (e) {
+                    finalReasoning = data.output;
+                }
+            } else {
+                finalReasoning = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+            }
             
+            reports[id] = finalReasoning;
+
+            // Status Logic
+            const upperText = (finalStatus + " " + finalReasoning).toUpperCase();
             const isFlagged = upperText.includes("FLAGGED") || 
                               upperText.includes("SUSPICIOUS") || 
-                              upperText.includes("HIGH RISK") ||
-                              upperText.includes("MEDIUM RISK") ||
+                              upperText.includes("HIGH") || 
                               upperText.includes("CRIMINAL") ||
                               upperText.includes("INVESTIGATION");
 
-            if (isFlagged) {
+            if (finalStatus === "APPROVED") {
+                 statusCell.innerHTML = `<span class="badge status-safe"><i class="fa-solid fa-shield-check"></i> CLEARED</span>`;
+            } else if (isFlagged) {
                 statusCell.innerHTML = `<span class="badge status-flagged"><i class="fa-solid fa-triangle-exclamation"></i> RISK DETECTED</span>`;
             } else {
                 statusCell.innerHTML = `<span class="badge status-safe"><i class="fa-solid fa-shield-check"></i> CLEARED</span>`;
             }
             
-            // Show View Report button
             viewBtn.style.display = 'inline-flex';
 
         } catch (error) {
             console.error(error);
             statusCell.innerHTML = `<span class="badge status-flagged">Connection Error</span>`;
-            // Tip for user in console
-            console.warn("If you see Connection Error, check if your CORS extension is ON or if n8n is running.");
+            console.warn("Check if n8n is running and CORS is allowed.");
         }
     }
 
@@ -634,7 +754,6 @@
     function viewReport(id) {
         const content = document.getElementById('report-content');
         content.innerHTML = reports[id] || "No report data found.";
-        
         const modal = document.getElementById('modal-overlay');
         modal.style.display = 'flex';
     }
@@ -643,16 +762,11 @@
         document.getElementById('modal-overlay').style.display = 'none';
     }
 
-    // --- FORMATTER ---
-    // Cleans up the raw JSON/Markdown for the modal view
     function formatReport(text) {
-        // Simple cleanup: remove quotes if it looks like a stringified string
         let clean = text;
         if (clean.startsWith('"') && clean.endsWith('"')) {
             clean = clean.slice(1, -1);
         }
-        // Convert \n to <br> for HTML display if strictly text, 
-        // but since we use white-space: pre-wrap in CSS, we mostly just need to clean JSON formatting
         return clean.replace(/\\n/g, '\n');
     }
 
