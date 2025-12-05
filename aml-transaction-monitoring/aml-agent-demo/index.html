@@ -525,11 +525,16 @@
             reports[id] = formatReport(fullText);
 
             // 4. Determine Status based on keywords in AI response
-            // We look for negative keywords to flag it
-            const isFlagged = fullText.includes("FLAGGED") || 
-                              fullText.includes("suspicious") || 
-                              fullText.includes("High") ||
-                              fullText.includes("Risk");
+            // REFINED LOGIC: Case-insensitive check for explicit negative keywords.
+            // "Risk" alone is NOT enough because "Low Risk" triggers false positives.
+            const upperText = fullText.toUpperCase();
+            
+            const isFlagged = upperText.includes("FLAGGED") || 
+                              upperText.includes("SUSPICIOUS") || 
+                              upperText.includes("HIGH RISK") ||
+                              upperText.includes("MEDIUM RISK") ||
+                              upperText.includes("CRIMINAL") ||
+                              upperText.includes("INVESTIGATION");
 
             if (isFlagged) {
                 statusCell.innerHTML = `<span class="badge status-flagged"><i class="fa-solid fa-triangle-exclamation"></i> RISK DETECTED</span>`;
