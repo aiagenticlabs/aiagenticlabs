@@ -460,7 +460,8 @@
     const CSV_FILE = 'https://aiagenticlabs.net/aml-transaction-monitoring/aml-agent-demo/companies.csv'; 
     
     // Your n8n Webhook
-    const N8N_WEBHOOK = "https://n8n.aiagenticlabs.net/webhook-test/check-transaction"; 
+    // Changed to PRODUCTION URL (removed -test) since workflow is Active
+    const N8N_WEBHOOK = "https://n8n.aiagenticlabs.net/webhook/check-transaction"; 
 
     // --- STATE ---
     const reports = {};
