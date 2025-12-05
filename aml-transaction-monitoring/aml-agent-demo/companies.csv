@@ -1,0 +1,9 @@
+id,entity_name,industry,risk_level,latest_news_headline,news_source,news_date
+101,Galactic Freight & Shipping,Logistics,Low,Quarterly earnings beat expectations by 15%.,Coruscant Daily,2025-12-01
+102,Hutt Cartel Logistics,Import/Export,High,Linked to smuggling operations in the Outer Rim territories.,Galactic Crime Watch,2025-12-04
+103,Skywalker Holdings,Real Estate,Low,Announces new housing project on Tatooine.,Outer Rim Business,2025-11-20
+104,Coruscant Consulting Group,Finance,Medium,CEO steps down amid minor accounting irregularities.,Core Worlds Finance,2025-12-02
+105,Sith Imperial Works,Defense,High,Sanctions imposed following unauthorized weapon testing.,Senate News,2025-12-05
+106,Alderaan Relief Fund,Non-Profit,Low,Charity gala raises 50M credits for refugees.,Peace Weekly,2025-12-03
+107,Kamino Cloning Labs,Biotech,High,Under investigation for unethical genetic experimentation.,Republic Science Journal,2025-12-06
+108,Bespin Gas Mining,Energy,Low,Tibanna gas production reaches record high.,Cloud City Gazette,2025-12-04
